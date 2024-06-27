@@ -1,0 +1,54 @@
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    
+env:
+  CARGO_TERM_COLOR: always
+  FROM_REF: ${{ github.event.pull_request.base.sha || (!github.event.forced && ( github.event.before != '0000000000000000000000000000000000000000'  && github.event.before || github.sha )) || format('{0}~', github.sha) }}
+  TO_REF: ${{ github.sha }}
+
+jobs:
+  test:
+    name: Test for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: nu,cargo-rdme
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Install pre-commit & gitlint
+        run: python -m pip install pre-commit gitlint
+      - run: python -m pip freeze --local
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-3|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: pre-commit validation
+        run: pre-commit run --show-diff-on-failure --color=always --from-ref ${{ env.FROM_REF }} --to-ref ${{ env.TO_REF }}
+      - name: gitlint validation
+        run: gitlint --commits ${{ env.FROM_REF }}..${{ env.TO_REF }}
+        if: always()
+      - name: Formatting
+        run: pre-commit run --show-diff-on-failure --color=always --hook-stage push --from-ref ${{ env.FROM_REF }} --to-ref ${{ env.TO_REF }} fmt
+      - name: Linting
+        run: pre-commit run --show-diff-on-failure --color=always --hook-stage push --from-ref ${{ env.FROM_REF }} --to-ref ${{ env.TO_REF }} clippy
+      - name: Tests
+        run: pre-commit run --show-diff-on-failure --color=always --hook-stage push --from-ref ${{ env.FROM_REF }} --to-ref ${{ env.TO_REF }} test 
