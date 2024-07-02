@@ -4,3 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
+mf1-macros = { path = "../mf1-macros", optional = true}
+
+[features]
+
+default = ["macros"]
+macros = ["mf1-macros"]

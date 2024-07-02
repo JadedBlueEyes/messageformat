@@ -1,0 +1,11 @@
+[package]
+name = "basic"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+mf1 = { version = "0.1.0", path = "../../crates/mf1" }
+
+[package.metadata.mf1]
+locales = ["en", "es"]
