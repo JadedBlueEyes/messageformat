@@ -50,9 +50,6 @@ pub struct Locale<'a> {
 }
 
 impl<'a> Locale<'a> {
-    pub fn new(name: &'a str, keys: HashMap<String, String>) -> Self {
-        Self { name, keys }
-    }
     pub fn from_file(name: &'a str, locale_file: File) -> Result<Self, serde_json::Error> {
         Ok(Self {
             name,
