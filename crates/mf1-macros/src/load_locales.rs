@@ -156,7 +156,7 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             }
         }
 
-        impl FromStr for Locale {
+        impl std::str::FromStr for Locale {
             type Err = ();
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
