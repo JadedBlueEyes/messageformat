@@ -39,7 +39,7 @@ impl From<Error> for proc_macro::TokenStream {
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ConfigFile {
     pub locales_dir: Option<String>,
-    pub default_locale: Option<String>,
+    pub base_locale: Option<String>,
     pub locales: Vec<String>,
 }
 
@@ -100,12 +100,26 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         manifest_dir_path.pop();
     }
 
+    let i18n_keys_ident = quote::format_ident!("Mf1Keys");
+
     let default_locale = meta
-        .default_locale
+        .base_locale
         .as_ref()
         .or_else(|| meta.locales.first())
         .ok_or(Error::NoDefaultLocale)?;
+
+    let base_locale = locales
+        .iter()
+        .find(|l| l.name == default_locale)
+        .ok_or(Error::NoDefaultLocale)?;
+    let base_locale_ident = base_locale.ident();
+
     let locale_idents: Vec<_> = locales.iter().map(Locale::ident).collect();
+
+    let get_strings_match_arms = locale_idents
+        .iter()
+        .map(|locale| quote!(Locale::#locale => &#locale))
+        .collect::<Vec<_>>();
 
     let as_str_match_arms = locale_idents
         .iter()
@@ -120,6 +134,7 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         .map(|(key, l)| (key, l.name))
         .map(|(variant, locale)| quote!(#locale => Ok(Locale::#variant)))
         .collect::<Vec<_>>();
+
     let locales_enum = quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
@@ -128,6 +143,12 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         }
 
         impl Locale {
+            fn get_strings(self) -> &'static #i18n_keys_ident {
+                match self {
+                    #(#get_strings_match_arms,)*
+                }
+            }
+
             fn as_str(self) -> &'static str {
                 match self {
                     #(#as_str_match_arms,)*
@@ -145,20 +166,21 @@ pub fn load_locales() -> Result<TokenStream, Error> {
                 }
             }
         }
+
+        impl Default for Locale {
+            fn default() -> Self {
+                Locale::#base_locale_ident
+            }
+        }
     };
 
-    let global_locale = locales
-        .iter()
-        .find(|l| l.name == default_locale)
-        .ok_or(Error::NoDefaultLocale)?;
-    let i18n_keys_ident = quote::format_ident!("Mf1Keys");
-
-    let string_fields = global_locale
+    let string_fields = base_locale
         .keys
         .keys()
         .map(|key| Ident::new(key, Span::call_site()))
         .map(|key| quote!(pub #key: &'static str))
         .collect::<Vec<_>>();
+
     let keys_type = quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
@@ -166,49 +188,41 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             #(#string_fields,)*
         }
     };
-    let locale_values: Vec<_> = locales
-        .iter()
-        .map(|locale| {
-            let fields = global_locale.keys.iter().map(|(key, global_value)| {
-                let key_ident = Ident::new(key, Span::call_site());
-                match locale.keys.get(key) {
-                    Some(value) => quote!(#key_ident: #value),
-                    _ => {
-                        quote!(#key_ident: #global_value)
-                        // global_locale
-                        //     .keys
-                        //     .get(key)
-                        //     .map(|value| quote!(#key: #value))
-                    }
-                }
-            });
-            let ident = locale.ident();
-            let pattern = quote!(Locale::#ident);
-            quote! {
-                #pattern => #i18n_keys_ident {
-                    #(#fields,)*
-                }
-            }
-        })
-        .collect();
-    let locale_impl = quote! {
-        impl #i18n_keys_ident {
 
-            pub const fn new(locale: Locale) -> Self {
-                match locale {
-                    #(
-                        #locale_values,
-                    )*
+    let locale_values = locales.iter().map(|locale| {
+        let fields = base_locale.keys.keys().map(|key| {
+            let key_ident = Ident::new(key, Span::call_site());
+            match locale.keys.get(key) {
+                Some(value) => quote!(#key_ident: #value),
+                _ => {
+                    quote!(#key_ident: #base_locale_ident.#key_ident)
+                    // global_locale
+                    //     .keys
+                    //     .get(key)
+                    //     .map(|value| quote!(#key: #value))
                 }
             }
+        });
+        let ident = locale.ident();
+        quote! {
+            #[allow(non_upper_case_globals)]
+            static #ident: #i18n_keys_ident = #i18n_keys_ident {
+                #(#fields,)*
+            };
         }
+    });
+
+    let locale_static = quote! {
+        #(
+            #locale_values
+        )*
     };
     // #(#builder_fields,)*
     // #(#subkeys_fields,)*
     Ok(quote! {
         #locales_enum
         #keys_type
-        #locale_impl
+        #locale_static
     })
     // }
     // Err(Error::Misc)
