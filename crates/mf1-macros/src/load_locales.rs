@@ -244,7 +244,7 @@ pub fn load_locales() -> Result<TokenStream, Error> {
 
         quote! {
             #[allow(non_upper_case_globals)]
-            static #ident: #i18n_keys_ident = #i18n_keys_ident {
+            const #ident: #i18n_keys_ident = #i18n_keys_ident {
                 #(#fields,)*
             };
         }
