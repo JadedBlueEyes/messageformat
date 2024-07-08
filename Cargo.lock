@@ -250,11 +250,11 @@ name = "mf1-macros"
 version = "0.1.0"
 dependencies = [
  "convert_case",
+ "mf1-parser",
  "proc-macro2",
  "quote",
  "serde",
  "serde_json",
- "syn",
  "thiserror",
  "toml",
 ]

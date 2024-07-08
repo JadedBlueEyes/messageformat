@@ -1,4 +1,5 @@
 {
     "message": "This is a message!",
-    "message_2": "This is a second message!"
+    "message_2": "This is a second message!",
+    "interpolated": "This has been interpolated with { var }"
 }

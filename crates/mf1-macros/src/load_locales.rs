@@ -1,13 +1,14 @@
 use convert_case::Case::Snake;
 use convert_case::Casing;
+use mf1_parser::{parse, LexerSpan, Token as AstToken};
 use proc_macro2::Ident;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fs::File, path::PathBuf};
+use std::io;
+use std::{borrow::Cow, collections::HashMap, fs::File, path::PathBuf};
 use thiserror::Error;
 use toml::Value;
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Error, can't access env variable \"CARGO_MANIFEST_DIR\": {0}")]
@@ -24,6 +25,14 @@ pub enum Error {
     LocaleFileDeser {
         path: PathBuf,
         err: serde_json::Error,
+    },
+    #[error("Parsing of key {key} in {locale} failed: {message} ({span:?})")]
+    ParseKeyErr {
+        locale: String,
+        key: String,
+        src: String,
+        message: String,
+        span: LexerSpan,
     },
     #[error("Unknown error")]
     Misc,
@@ -44,17 +53,17 @@ pub struct ConfigFile {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Locale<'a> {
+pub struct StringSet<'a> {
     pub name: &'a str,
-    pub keys: HashMap<String, String>,
+    pub keys: HashMap<Cow<'a, str>, Cow<'a, str>>,
 }
 
-impl<'a> Locale<'a> {
+impl<'a> StringSet<'a> {
     pub fn from_file(name: &'a str, locale_file: File) -> Result<Self, serde_json::Error> {
-        Ok(Self {
-            name,
-            keys: serde_json::from_reader(locale_file)?,
-        })
+        let reader = io::BufReader::new(locale_file);
+        let mut deser = serde_json::Deserializer::from_reader(reader);
+        let keys = HashMap::<Cow<'a, str>, Cow<'a, str>>::deserialize(&mut deser)?;
+        Ok(Self { name, keys })
     }
     pub fn ident(&self) -> Ident {
         quote::format_ident!("{}", self.name.to_case(Snake))
@@ -90,12 +99,10 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         manifest_dir_path.set_extension("json");
         let locale_file = std::fs::File::open(&manifest_dir_path).map_err(Error::NoLocaleFile)?;
         let locale =
-            Locale::from_file(locale, locale_file).map_err(|err| Error::LocaleFileDeser {
+            StringSet::from_file(locale, locale_file).map_err(|err| Error::LocaleFileDeser {
                 path: manifest_dir_path.clone(),
                 err,
             })?;
-        // let mut file = String::new();
-        // locale_file.read_to_string(&mut file);
         locales.push(locale);
         manifest_dir_path.pop();
     }
@@ -108,13 +115,13 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         .or_else(|| meta.locales.first())
         .ok_or(Error::NoDefaultLocale)?;
 
-    let base_locale = locales
+    let base_locale_strings = locales
         .iter()
         .find(|l| l.name == default_locale)
         .ok_or(Error::NoDefaultLocale)?;
-    let base_locale_ident = base_locale.ident();
+    let base_locale_ident = base_locale_strings.ident();
 
-    let locale_idents: Vec<_> = locales.iter().map(Locale::ident).collect();
+    let locale_idents: Vec<_> = locales.iter().map(StringSet::ident).collect();
 
     let get_strings_match_arms = locale_idents
         .iter()
@@ -174,9 +181,39 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         }
     };
 
-    let string_fields = base_locale
+    let locale_ast: HashMap<_, _> = locales
+        .iter()
+        .map(|l| {
+            let mut keys = HashMap::new();
+            l.keys.iter().for_each(|(k, v)| {
+                keys.insert(
+                    k.clone(),
+                    parse::<String>(v).map_err(|(message, span)| Error::ParseKeyErr {
+                        locale: l.name.to_string(),
+                        key: k.to_string(),
+                        src: v.to_string(),
+                        message,
+                        span,
+                    }),
+                );
+            });
+            (l.name, keys)
+        })
+        .collect();
+
+    let string_keys = base_locale_strings
         .keys
         .keys()
+        .filter(|k| {
+            locale_ast.iter().all(|(_l, v)| match v.get(*k) {
+                Some(s) => matches!(s, Ok(r) if r.iter().all(|t| matches!(t, AstToken::Content { value: _ }))),
+                None => true,
+            })
+        })
+        .collect::<Vec<_>>();
+
+    let string_field_defs: Vec<TokenStream> = string_keys
+        .iter()
         .map(|key| Ident::new(key, Span::call_site()))
         .map(|key| quote!(pub #key: &'static str))
         .collect::<Vec<_>>();
@@ -185,14 +222,14 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #i18n_keys_ident {
-            #(#string_fields,)*
+            #(#string_field_defs,)*
         }
     };
 
     let locale_values = locales.iter().map(|locale| {
-        let fields = base_locale.keys.keys().map(|key| {
+        let fields = string_keys.iter().map(|key| {
             let key_ident = Ident::new(key, Span::call_site());
-            match locale.keys.get(key) {
+            match locale.keys.get(*key) {
                 Some(value) => quote!(#key_ident: #value),
                 _ => {
                     quote!(#key_ident: #base_locale_ident.#key_ident)
@@ -204,6 +241,7 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             }
         });
         let ident = locale.ident();
+
         quote! {
             #[allow(non_upper_case_globals)]
             static #ident: #i18n_keys_ident = #i18n_keys_ident {
