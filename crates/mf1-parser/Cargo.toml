@@ -1,0 +1,9 @@
+[package]
+name = "mf1-parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+icu_plurals = { version = "1.5.0", features = ["serde", "datagen"] }
+logos = "0.14.0"
+serde = { version = "1.0.203", features = ["derive"] }
