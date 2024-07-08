@@ -1,5 +1,6 @@
 {
     "conventionalCommits.scopes": [
-        "mf1-parser"
+        "mf1-parser",
+        "examples"
     ]
 }

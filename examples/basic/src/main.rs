@@ -10,6 +10,7 @@ fn main() {
         .get(1)
         .map(|l| Locale::from_str(l).unwrap())
         .unwrap_or_default();
+    dbg!(l.get_strings());
     println!("{}", t!(l, message));
     println!("{}", t!(l, message_2));
 }
