@@ -1,6 +1,7 @@
 use icu_plurals::PluralCategory;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
@@ -93,4 +94,83 @@ where
 {
     pub key: StrMaybeOwned,
     pub tokens: Cow<'b, [Token<'a, 'b, StrMaybeOwned>]>,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ArgType {
+    OrdinalArg,
+    PlainArg,
+    SelectArg,
+    FunctionArg,
+}
+
+pub trait TokenSlice<'a, T> {
+    fn get_args(&'a self) -> HashMap<&'a T, Vec<ArgType>>
+    where
+        T: Deref<Target = str> + Clone,
+    {
+        let mut args = HashMap::new();
+
+        self.get_args_into(&mut args);
+        args
+    }
+    fn get_args_into(&'a self, args: &mut HashMap<&'a T, Vec<ArgType>>)
+    where
+        T: Deref<Target = str> + Clone;
+}
+
+impl<'a, T> TokenSlice<'a, T> for [Token<'_, 'a, T>]
+where
+    T: Deref<Target = str>
+        + Clone
+        + for<'b> std::cmp::PartialEq<&'b str>
+        + std::cmp::Eq
+        + std::hash::Hash,
+{
+    fn get_args_into(&'a self, args: &mut HashMap<&'a T, Vec<ArgType>>)
+    where
+        T: Deref<Target = str> + Clone,
+    {
+        for t in self.iter() {
+            match t {
+                Token::Content { value: _ } => {}
+                Token::PlainArg { arg } => {
+                    args.entry(arg).or_default().push(ArgType::PlainArg);
+                }
+                Token::FunctionArg {
+                    arg,
+                    key: _,
+                    param: _,
+                } => {
+                    args.entry(arg).or_default().push(ArgType::FunctionArg);
+                }
+                Token::Plural {
+                    arg,
+                    cases,
+                    plural_offset: _,
+                }
+                | Token::SelectOrdinal {
+                    arg,
+                    cases,
+                    plural_offset: _,
+                } => {
+                    args.entry(arg).or_default().push(ArgType::OrdinalArg);
+                    for case in cases.iter() {
+                        case.tokens.get_args_into(args)
+                    }
+                }
+                Token::Select {
+                    arg,
+                    cases,
+                    plural_offset: _,
+                } => {
+                    args.entry(arg).or_default().push(ArgType::SelectArg);
+                    for case in cases.iter() {
+                        case.tokens.get_args_into(args)
+                    }
+                }
+                Token::Octothorpe {} => {}
+            };
+        }
+    }
 }
