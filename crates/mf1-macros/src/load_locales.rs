@@ -1,12 +1,12 @@
 use convert_case::Case::Snake;
 use convert_case::Casing;
-use mf1_parser::{parse, LexerSpan, Token as AstToken};
+use mf1_parser::{parse, ArgType, LexerSpan, Token as AstToken, TokenSlice};
 use proc_macro2::Ident;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use serde::{Deserialize, Serialize};
-use std::io;
 use std::{borrow::Cow, collections::HashMap, fs::File, path::PathBuf};
+use std::{io, iter};
 use thiserror::Error;
 use toml::Value;
 #[derive(Debug, Error)]
@@ -125,22 +125,19 @@ pub fn load_locales() -> Result<TokenStream, Error> {
 
     let get_strings_match_arms = locale_idents
         .iter()
-        .map(|locale| quote!(Locale::#locale => &#locale))
-        .collect::<Vec<_>>();
+        .map(|locale| quote!(Locale::#locale => &#locale));
 
     let as_str_match_arms = locale_idents
         .iter()
         .zip(locales.iter())
         .map(|(key, l)| (key, l.name))
-        .map(|(variant, locale)| quote!(Locale::#variant => #locale))
-        .collect::<Vec<_>>();
+        .map(|(variant, locale)| quote!(Locale::#variant => #locale));
 
     let from_str_match_arms = locale_idents
         .iter()
         .zip(locales.iter())
         .map(|(key, l)| (key, l.name))
-        .map(|(variant, locale)| quote!(#locale => Ok(Locale::#variant)))
-        .collect::<Vec<_>>();
+        .map(|(variant, locale)| quote!(#locale => Ok(Locale::#variant)));
 
     let locales_enum = quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -212,40 +209,219 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         })
         .collect::<Vec<_>>();
 
-    let string_field_defs: Vec<TokenStream> = string_keys
+    let mut dyn_keys = HashMap::new();
+    for (locale, asts) in locale_ast.iter() {
+        for (k, ast) in asts.iter().filter(|(k, _)| !string_keys.contains(k)) {
+            if base_locale_strings.keys.contains_key(k) {
+                if let Ok(ast) = ast {
+                    dyn_keys
+                        .entry(k)
+                        .and_modify(|args| ast.get_args_into(args))
+                        .or_insert_with(|| ast.get_args());
+                }
+            } else {
+                // Default locale is missing this key!
+                eprintln!(
+                    "Default locale is missing key {:?} from locale {}!",
+                    k, locale
+                )
+            }
+        }
+    }
+    let dyn_keys = dyn_keys
+        .into_iter()
+        .map(|(k, a)| {
+            (
+                k,
+                a.into_iter()
+                    .map(|(a, v)| {
+                        if v.len() > 1 {
+                            eprintln!(
+                    "Argument {a:?} from key {k} is used in multiple ways! Picking first type",
+                )
+                        }
+                        let arg_type = *v.first().expect("arguments should have a type");
+                        (a, arg_type)
+                    })
+                    .collect::<HashMap<_, _>>(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
+    let builder_defs: Vec<TokenStream> = dyn_keys
         .iter()
-        .map(|key| Ident::new(key, Span::call_site()))
-        .map(|key| quote!(pub #key: &'static str))
+        .map(|(key, args)| {
+            let ident = Ident::new(key, Span::call_site());
+            let type_params = args
+                .iter()
+                .map(|(arg, _)| Ident::new(&format!("__{}", arg), Span::call_site()));
+            let concrete_types: Vec<_> = args
+                .iter()
+                .map(|(_, arg_type)| match arg_type {
+                    ArgType::OrdinalArg => quote! {i32},
+                    ArgType::PlainArg | ArgType::SelectArg => quote! {&str},
+                    ArgType::FunctionArg => todo!()
+                }).collect();
+
+            let field_names: Vec<_> = args.iter().map(|(arg, _)| {
+                Ident::new(&format!("arg_{}", arg), Span::call_site())
+            }).collect();
+            let fields = args.iter().map(|(arg, _)| {
+                let key = Ident::new(&format!("arg_{}", arg), Span::call_site());
+                let type_param = Ident::new(&format!("__{}", arg), Span::call_site());
+                quote!(#key: #type_param)
+            });
+            let default_type_params = args.iter().map(|_| quote!(EmptyValue));
+            let default_fields = field_names.iter().map(|key| {
+                quote!(#key: EmptyValue)
+            });
+            let formatter_args = field_names.iter().map(|key| {
+                quote!(self.#key)
+            });
+            let formatter_type = quote!(&'a for<'x, 'y> fn(&'x mut dyn mf1::Formatable<'y>, #(#concrete_types,)*) -> Result<(), Box<dyn std::error::Error>>);
+            fn gen_setter<'a>(ident: &syn::Ident, field: &syn::Ident, other_fields: impl Iterator<Item = &'a Ident> + Clone) -> proc_macro2::TokenStream {
+                let restructure_others = other_fields.clone();
+                quote! {
+
+                    impl<'a> #ident<'a, EmptyValue> {
+                        pub fn #field(self, #field: &str) -> interpolated<'a, &str> {
+                            let #ident { formatter, #(#other_fields,)* .. } = self;
+                            #ident { formatter, #field, #(#restructure_others,)*  }
+                        }
+                    }
+                }
+            }
+    fn split_at<T>(slice: &[T], i: usize) -> (&[T], &T, &[T]) {
+        let (left, rest) = slice.split_at(i);
+        let (mid, right) = rest.split_first().unwrap();
+        (left, mid, right)
+    }
+            let setters = (0..field_names.len())
+            .map(|i| split_at(&field_names, i))
+            .map(|(left_fields, field, right_fields)| {
+                gen_setter(&ident, field, left_fields.iter().chain(right_fields.iter()))
+            });
+            quote! {
+                #[allow(non_camel_case_types, non_snake_case)]
+                // #[derive(Clone, Copy)]
+                #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+                // #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+                pub struct #ident<'a, #(#type_params,)*> {
+                    formatter: #formatter_type,
+                    #(#fields,)*
+                }
+
+                impl<'a> #ident<'a, #(#default_type_params,)*> {
+                    pub const fn new(formatter: #formatter_type) -> Self {
+                        Self {
+                            formatter,
+                            #(#default_fields,)*
+                        }
+                    }
+                }
+                #(#setters)*
+                impl<'a> mf1::BuildStr for #ident<'a, #(#concrete_types,)*> {
+                    #[inline]
+                    fn build_string(self) -> std::borrow::Cow<'static, str> {
+                        std::borrow::Cow::Owned(format!("{}", self))
+                    }
+                }
+                impl<'a> std::fmt::Display for #ident<'a, #(#concrete_types,)*> {
+                    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        match (self.formatter)(f, #(#formatter_args)*) {
+                            Ok(_) => Ok(()),
+                            Err(e) => Err(*e.downcast().unwrap()),
+                        }
+                    }
+                }
+
+            }
+        })
+        .collect::<Vec<_>>();
+    let dyn_field_defs: Vec<TokenStream> = dyn_keys
+        .iter()
+        .map(|(key, args)| {
+            let key: Ident = Ident::new(key, Span::call_site());
+            let type_params = args.iter().map(|_| quote!(builders::EmptyValue));
+            quote!(pub #key: builders::#key<'static, #(#type_params,)*>)
+        })
         .collect::<Vec<_>>();
 
+    let string_field_defs = string_keys
+        .iter()
+        .map(|key| Ident::new(key, Span::call_site()))
+        .map(|key| quote!(pub #key: &'static str));
+
     let keys_type = quote! {
+        #[doc(hidden)]
+        pub mod builders {
+            #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+            pub struct EmptyValue;
+            #(#builder_defs)*
+        }
+
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types, non_snake_case)]
         pub struct #i18n_keys_ident {
             #(#string_field_defs,)*
+            #(#dyn_field_defs,)*
         }
     };
 
     let locale_values = locales.iter().map(|locale| {
-        let fields = string_keys.iter().map(|key| {
+        let string_fields = string_keys.iter().map(|key| {
             let key_ident = Ident::new(key, Span::call_site());
             match locale.keys.get(*key) {
                 Some(value) => quote!(#key_ident: #value),
                 _ => {
                     quote!(#key_ident: #base_locale_ident.#key_ident)
-                    // global_locale
-                    //     .keys
-                    //     .get(key)
-                    //     .map(|value| quote!(#key: #value))
                 }
             }
         });
+        let formatter_fields = dyn_keys.iter().map(|(key, arg_types)| {
+            let key_ident = Ident::new(key, Span::call_site());
+            match locale_ast.get(locale.name).unwrap().get(*key) {
+                Some(Ok(ast)) => {
+                    let args = arg_types
+                        .iter()
+                        .map(|(name, arg_type)| {
+                            let name = Ident::new(name, Span::call_site());
+                            match arg_type {
+                                ArgType::OrdinalArg => quote! {#name: i32},
+                                ArgType::PlainArg | ArgType::SelectArg => quote! {#name: &str},
+                                ArgType::FunctionArg => todo!()
+                            }
+                        });
+                    fn gen_items(token: &AstToken<String>) -> impl Iterator<Item = TokenStream> {
+                        match token {
+                            AstToken::Content { value } => iter::once(quote! {fmt.write_str(#value)?;}),
+                            AstToken::PlainArg { arg } => {
+                                let arg = Ident::new(arg, Span::call_site());
+                                iter::once(quote! {fmt.write_str(#arg)?;})
+                            },
+                            AstToken::Octothorpe {  } => iter::once(quote! {fmt.write_str("#")?;}),
+                            _ => todo!(),
+                        }
+                    }
+                    let items = ast.iter().flat_map(gen_items);
+                    quote!(#key_ident: builders::#key_ident::new(&(|fmt: &mut dyn mf1::Formatable, #(#args,)*| -> Result<(), _> {
+                        #(#items)*
+                        Ok(())
+                    } as _)))
+                },
+                _ => {
+                    quote!(#key_ident: #base_locale_ident.#key_ident)
+                }
+            }
+        });
+
         let ident = locale.ident();
 
         quote! {
             #[allow(non_upper_case_globals)]
             const #ident: #i18n_keys_ident = #i18n_keys_ident {
-                #(#fields,)*
+                #(#string_fields,)*
+                #(#formatter_fields,)*
             };
         }
     });
@@ -255,13 +431,10 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             #locale_values
         )*
     };
-    // #(#builder_fields,)*
-    // #(#subkeys_fields,)*
+
     Ok(quote! {
         #locales_enum
         #keys_type
         #locale_static
     })
-    // }
-    // Err(Error::Misc)
 }

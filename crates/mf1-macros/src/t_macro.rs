@@ -1,4 +1,4 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::quote;
 
 use syn::{token, Expr, Ident};
@@ -27,6 +27,7 @@ impl From<Error> for proc_macro::TokenStream {
 pub struct ParsedInput {
     pub context: Expr,
     pub key: Ident,
+    pub interpolations: Option<Vec<InterpolatedValue>>,
 }
 
 impl syn::parse::Parse for ParsedInput {
@@ -34,23 +35,93 @@ impl syn::parse::Parse for ParsedInput {
         let context = input.parse()?;
         input.parse::<token::Comma>()?;
         let key = input.parse()?;
-        Ok(ParsedInput { context, key })
+        let interpolations = match input.parse::<token::Comma>() {
+            Ok(_) => {
+                let interpolations = input
+                    .parse_terminated(InterpolatedValue::parse, token::Comma)?
+                    .into_iter()
+                    .collect();
+                Some(interpolations)
+            }
+            Err(_) if input.is_empty() => None,
+            Err(err) => return Err(err),
+        };
+        Ok(ParsedInput {
+            context,
+            key,
+            interpolations,
+        })
     }
 }
 
+pub enum InterpolatedValue {
+    Var(Ident),
+    AssignedVar { key: Ident, value: Expr },
+}
+impl syn::parse::Parse for InterpolatedValue {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let key = input.parse()?;
+        let value = if input.peek(syn::Token![=]) {
+            input.parse::<syn::Token![=]>()?;
+            let value = input.parse()?;
+            InterpolatedValue::AssignedVar { key, value }
+        } else {
+            InterpolatedValue::Var(key)
+        };
+        Ok(value)
+    }
+}
 pub fn t_macro(tokens: TokenStream, output_type: OutputType) -> Result<TokenStream, Error> {
-    let ParsedInput { context, key } = syn::parse2(tokens)?;
+    let ParsedInput {
+        context,
+        key,
+        interpolations,
+    } = syn::parse2(tokens)?;
 
     let get_key = quote!(#context.get_strings().#key);
     let build_fn = match output_type {
         OutputType::String => quote!(build_string),
     };
-    let inner = quote! {
-        {
-            #[allow(unused)]
-            use mf1::BuildStr;
-            let _key = #get_key;
-            _key.#build_fn()
+    let inner = if let Some(interpolations) = interpolations {
+        let (keys, values): (Vec<_>, Vec<_>) = interpolations
+            .iter()
+            .map(|iv| match iv {
+                InterpolatedValue::Var(ident) => (ident.clone(), quote!(#ident)),
+                InterpolatedValue::AssignedVar { key, value } => (key.clone(), quote!(#value)),
+            })
+            .unzip();
+        let params = quote! {
+            let (#(#keys,)*) = (#(#values,)*);
+        };
+
+        let builders = interpolations.iter().map(|inter| {
+            let key = match inter {
+                InterpolatedValue::Var(key) | InterpolatedValue::AssignedVar { key, .. } => key,
+            };
+            let builder = Ident::new(&format!("arg_{}", key), Span::call_site());
+            quote!(#builder(&#key))
+        });
+        quote! {
+            {
+                #params
+                #[allow(unused)]
+                use mf1::BuildStr;
+                let _key = #get_key;
+                #(
+                    let _key = _key.#builders;
+                )*
+                #[deny(deprecated)]
+                _key.#build_fn()
+            }
+        }
+    } else {
+        quote! {
+            {
+                #[allow(unused)]
+                use mf1::BuildStr;
+                let _key = #get_key;
+                _key.#build_fn()
+            }
         }
     };
     Ok(inner)
