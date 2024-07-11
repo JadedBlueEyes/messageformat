@@ -284,7 +284,7 @@ pub fn load_locales() -> Result<TokenStream, Error> {
                 quote! {
 
                     impl<'a> #ident<'a, EmptyValue> {
-                        pub fn #field(self, #field: &str) -> interpolated<'a, &str> {
+                        pub fn #field(self, #field: &str) -> #ident<'a, &str> {
                             let #ident { formatter, #(#other_fields,)* .. } = self;
                             #ident { formatter, #field, #(#restructure_others,)*  }
                         }
