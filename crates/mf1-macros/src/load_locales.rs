@@ -240,7 +240,7 @@ pub fn load_locales() -> Result<TokenStream, Error> {
                     "Argument {a:?} from key {k} is used in multiple ways! Picking first type",
                 )
                         }
-                        let arg_type = *v.first().expect("arguments should have a type");
+                        let arg_type = *v.iter().next().expect("arguments should have a type");
                         (a, arg_type)
                     })
                     .collect::<HashMap<_, _>>(),

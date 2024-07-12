@@ -1,7 +1,7 @@
 use icu_plurals::PluralCategory;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
@@ -96,7 +96,7 @@ where
     pub tokens: Cow<'b, [Token<'a, 'b, StrMaybeOwned>]>,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub enum ArgType {
     OrdinalArg,
     PlainArg,
@@ -105,7 +105,7 @@ pub enum ArgType {
 }
 
 pub trait TokenSlice<'a, T> {
-    fn get_args(&'a self) -> HashMap<&'a T, Vec<ArgType>>
+    fn get_args(&'a self) -> HashMap<&'a T, HashSet<ArgType>>
     where
         T: Deref<Target = str> + Clone,
     {
@@ -114,7 +114,7 @@ pub trait TokenSlice<'a, T> {
         self.get_args_into(&mut args);
         args
     }
-    fn get_args_into(&'a self, args: &mut HashMap<&'a T, Vec<ArgType>>)
+    fn get_args_into(&'a self, args: &mut HashMap<&'a T, HashSet<ArgType>>)
     where
         T: Deref<Target = str> + Clone;
 }
@@ -127,7 +127,7 @@ where
         + std::cmp::Eq
         + std::hash::Hash,
 {
-    fn get_args_into(&'a self, args: &mut HashMap<&'a T, Vec<ArgType>>)
+    fn get_args_into(&'a self, args: &mut HashMap<&'a T, HashSet<ArgType>>)
     where
         T: Deref<Target = str> + Clone,
     {
@@ -135,14 +135,14 @@ where
             match t {
                 Token::Content { value: _ } => {}
                 Token::PlainArg { arg } => {
-                    args.entry(arg).or_default().push(ArgType::PlainArg);
+                    args.entry(arg).or_default().insert(ArgType::PlainArg);
                 }
                 Token::FunctionArg {
                     arg,
                     key: _,
                     param: _,
                 } => {
-                    args.entry(arg).or_default().push(ArgType::FunctionArg);
+                    args.entry(arg).or_default().insert(ArgType::FunctionArg);
                 }
                 Token::Plural {
                     arg,
@@ -154,7 +154,7 @@ where
                     cases,
                     plural_offset: _,
                 } => {
-                    args.entry(arg).or_default().push(ArgType::OrdinalArg);
+                    args.entry(arg).or_default().insert(ArgType::OrdinalArg);
                     for case in cases.iter() {
                         case.tokens.get_args_into(args)
                     }
@@ -164,7 +164,7 @@ where
                     cases,
                     plural_offset: _,
                 } => {
-                    args.entry(arg).or_default().push(ArgType::SelectArg);
+                    args.entry(arg).or_default().insert(ArgType::SelectArg);
                     for case in cases.iter() {
                         case.tokens.get_args_into(args)
                     }
