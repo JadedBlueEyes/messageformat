@@ -39,7 +39,7 @@ where
         arg: StrMaybeOwned,
         cases: Cow<'b, [SelectCase<'a, 'b, StrMaybeOwned>]>,
         #[serde(default, rename = "pluralOffset")]
-        plural_offset: Option<i32>,
+        plural_offset: Option<i32>, // TODO: Warn about this - it's unusable
     },
     #[serde(rename = "selectordinal")]
     SelectOrdinal {

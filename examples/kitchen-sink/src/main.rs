@@ -6,7 +6,7 @@ fn main() {
     dbg!(Locale::default());
     dbg!(Locale::en, Locale::en.get_strings());
     dbg!(Locale::es, Locale::es.get_strings());
-    println!("{}", t!(Locale::en, message))
+    println!("{}", t!(Locale::en, message));
 }
 
 #[cfg(test)]
@@ -57,5 +57,21 @@ fn fallbacks_dynamic() {
     assert_eq!(
         t!(Locale::es, interpolated, var = string),
         t!(Locale::en, interpolated, var = string)
+    );
+}
+
+#[test]
+fn select_formats() {
+    check(
+        t!(Locale::en, select, gender = "masculine"),
+        &expect!["He liked this."],
+    );
+    check(
+        t!(Locale::en, select, gender = "feminine"),
+        &expect!["She liked this."],
+    );
+    check(
+        t!(Locale::en, select, gender = "aaaaa"),
+        &expect!["They liked this."],
     );
 }

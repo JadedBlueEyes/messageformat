@@ -400,6 +400,27 @@ pub fn load_locales() -> Result<TokenStream, Error> {
                                 iter::once(quote! {fmt.write_str(#arg)?;})
                             },
                             AstToken::Octothorpe {  } => iter::once(quote! {fmt.write_str("#")?;}),
+                            select @ AstToken::Select { arg, cases, plural_offset: _ } => {
+                                let case_statements = cases.iter().filter(|case| case.key != "other").map(|case| {
+                                    let key = &case.key;
+                                    let items = case.tokens.iter().flat_map(gen_items);
+                                    quote! { #key => { #(#items)* }}
+                                });
+                                let other = if let Some(case) = cases.iter().find(|case| case.key == "other") {
+                                    let items = case.tokens.iter().flat_map(gen_items);
+                                    quote! { _ => { #(#items)* }
+                                }} else {
+                                    eprintln!("Missing other case in select {select:?}");
+                                    quote! {}
+                                };
+                                let arg = Ident::new(arg, Span::call_site());
+                                iter::once(quote! {
+                                    match #arg {
+                                        #(#case_statements,)*
+                                        #other
+                                    }
+                                })
+                            }
                             _ => todo!(),
                         }
                     }
