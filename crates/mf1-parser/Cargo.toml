@@ -3,6 +3,7 @@ name = "mf1-parser"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "Parse ICU MessageFormat 1 syntax"
 
 [dependencies]
 icu_plurals = { version = "1.5.0", features = ["serde", "datagen"] }

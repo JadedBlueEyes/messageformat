@@ -3,6 +3,7 @@ name = "mf1"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "Use ICU Messageformat 1 to internationalise your apps"
 
 [dependencies]
 
