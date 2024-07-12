@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1](https://github.com/JadedBlueEyes/messageformat/compare/mf1-v0.1.0...mf1-v0.1.1) - 2024-07-12
+
+### Other
+- Fill out changelogs and configure git-cliff
+
 ## [mf1-v0.1.0] - 2024-07-12
 
 ### Documentation
