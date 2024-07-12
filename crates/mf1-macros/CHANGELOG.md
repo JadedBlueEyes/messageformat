@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2024-07-12
+
+### Documentation
+
+- Add bare-bones README files ([6861793](https://github.com/JadedBlueEyes/messageformat/commit/6861793fe974f384a2136ee1550eba9fbf592796))
+
+### Miscellaneous Tasks
+
+- Specify readme files in Cargo.toml ([21c51b9](https://github.com/JadedBlueEyes/messageformat/commit/21c51b9038d9b74a8cd13b75237f20b1ed11c8c4))
+
 ## [0.1.1](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.0...mf1-macros-v0.1.1) - 2024-07-12
 
 ### Other
