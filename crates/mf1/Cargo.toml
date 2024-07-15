@@ -5,6 +5,8 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Use ICU MessageFormat 1 to internationalise your apps"
 readme = "README.md"
+repository = "https://github.com/JadedBlueEyes/messageformat"
+homepage = "https://github.com/JadedBlueEyes/messageformat/tree/main/crates/mf1"
 
 [dependencies]
 

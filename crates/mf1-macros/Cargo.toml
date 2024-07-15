@@ -5,6 +5,8 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Macros for the mf1 crate"
 readme = "README.md"
+repository = "https://github.com/JadedBlueEyes/messageformat"
+homepage = "https://github.com/JadedBlueEyes/messageformat/tree/main/crates/mf1-macros"
 
 [lib]
 proc-macro = true
