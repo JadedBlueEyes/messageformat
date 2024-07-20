@@ -5,6 +5,7 @@
     "interpolated_2": "Frobnicator { version }",
     "select": "{ gender, select, masculine {He} feminine {She} other {They} } liked this.",
     "nested": {
-        "keys": "You can nest keys!"
+        "keys": "You can nest keys!",
+        "fallbacks": "And fallbacks work!"
     }
 }

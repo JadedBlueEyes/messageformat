@@ -75,3 +75,22 @@ fn select_formats() {
         &expect!["They liked this."],
     );
 }
+
+#[test]
+fn basic_nested() {
+    check(t!(Locale::en, nested.keys), &expect!["You can nest keys!"]);
+    check(
+        t!(Locale::es, nested.keys),
+        &expect!["¡Puedes anidar llaves!"],
+    );
+}
+
+#[test]
+fn fallbacks_nested() {
+    let actual = expect!["And fallbacks work!"];
+    check(t!(Locale::en, nested.fallbacks), &actual);
+    assert_eq!(
+        t!(Locale::es, nested.fallbacks),
+        t!(Locale::en, nested.fallbacks)
+    );
+}
