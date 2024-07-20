@@ -3,5 +3,8 @@
     "message_2": "This is a second message!",
     "interpolated": "This has been interpolated with { var }",
     "interpolated_2": "Frobnicator { version }",
-    "select": "{ gender, select, masculine {He} feminine {She} other {They} } liked this."
+    "select": "{ gender, select, masculine {He} feminine {She} other {They} } liked this.",
+    "nested": {
+        "keys": "You can nest keys!"
+    }
 }

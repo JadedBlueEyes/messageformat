@@ -55,14 +55,21 @@ pub struct ConfigFile {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StringSet<'a> {
     pub name: &'a str,
-    pub keys: HashMap<Cow<'a, str>, Cow<'a, str>>,
+    pub keys: HashMap<Cow<'a, str>, StringItem<'a>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StringItem<'a> {
+    String(Cow<'a, str>),
+    Subkey(HashMap<Cow<'a, str>, StringItem<'a>>),
 }
 
 impl<'a> StringSet<'a> {
     pub fn from_file(name: &'a str, locale_file: File) -> Result<Self, serde_json::Error> {
         let reader = io::BufReader::new(locale_file);
         let mut deser = serde_json::Deserializer::from_reader(reader);
-        let keys = HashMap::<Cow<'a, str>, Cow<'a, str>>::deserialize(&mut deser)?;
+        let keys = HashMap::<Cow<'a, str>, StringItem<'a>>::deserialize(&mut deser)?;
         Ok(Self { name, keys })
     }
     pub fn ident(&self) -> Ident {
@@ -182,31 +189,42 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         .iter()
         .map(|l| {
             let mut keys = HashMap::new();
-            l.keys.iter().for_each(|(k, v)| {
-                keys.insert(
-                    k.clone(),
-                    parse::<String>(v).map_err(|(message, span)| Error::ParseKeyErr {
-                        locale: l.name.to_string(),
-                        key: k.to_string(),
-                        src: v.to_string(),
-                        message,
-                        span,
-                    }),
-                );
-            });
+            l.keys
+                .iter()
+                .filter_map(|(k, v)| match v {
+                    StringItem::String(v) => Some((k, v)),
+                    StringItem::Subkey(_) => None,
+                })
+                .for_each(|(k, v)| {
+                    keys.insert(
+                        k.clone(),
+                        parse::<String>(v).map_err(|(message, span)| Error::ParseKeyErr {
+                            locale: l.name.to_string(),
+                            key: k.to_string(),
+                            src: v.to_string(),
+                            message,
+                            span,
+                        }),
+                    );
+                });
             (l.name, keys)
         })
         .collect();
 
     let string_keys = base_locale_strings
         .keys
-        .keys()
-        .filter(|k| {
+        .iter()
+        .filter(|(k, v)| {
+            match v{
+                StringItem::String(_) => (),
+                StringItem::Subkey(_) => return false,
+            }
             locale_ast.iter().all(|(_l, v)| match v.get(*k) {
                 Some(s) => matches!(s, Ok(r) if r.iter().all(|t| matches!(t, AstToken::Content { value: _ }))),
                 None => true,
             })
         })
+        .map(|(k, _)| k)
         .collect::<Vec<_>>();
 
     let mut dyn_keys = HashMap::new();
@@ -372,7 +390,8 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         let string_fields = string_keys.iter().map(|key| {
             let key_ident = Ident::new(key, Span::call_site());
             match locale.keys.get(*key) {
-                Some(value) => quote!(#key_ident: #value),
+                Some(StringItem::String(value)) => quote!(#key_ident: #value),
+                Some(StringItem::Subkey(_)) => unreachable!(),
                 _ => {
                     quote!(#key_ident: #base_locale_ident.#key_ident)
                 }
