@@ -1,5 +1,8 @@
 # git-cliff ~ configuration file
 # https://git-cliff.org/docs/configuration
+[remote.github]
+owner = "JadedBlueEyes"
+repo = "messageformat"
 
 [changelog]
 # template for the changelog footer
