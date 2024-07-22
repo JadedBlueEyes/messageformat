@@ -21,7 +21,6 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Refactor
 
 - Start implementing subkeys in [`a040e7e`](https://github.com/JadedBlueEyes/messageformat/commit/a040e7ea88ce34d328b1f3d82ef488c8c8738ec9)
-[0.1.3]: https://github.com/JadedBlueEyes/messageformat/compare/0.1.2..0.1.3
 
 ## [0.1.2] - 2024-07-12
 
