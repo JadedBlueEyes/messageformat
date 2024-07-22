@@ -49,6 +49,8 @@ body = """
 {% endfor %}
 """
 
+footer = """
+"""
 # template for the changelog footer
 # footer = """
 # {%- macro remote_url() -%}
