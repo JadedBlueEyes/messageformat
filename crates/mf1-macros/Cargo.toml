@@ -1,6 +1,6 @@
 [package]
 name = "mf1-macros"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Macros for the mf1 crate"
@@ -13,7 +13,7 @@ proc-macro = true
 
 [dependencies]
 convert_case = "0.6.0"
-mf1-parser = { version = "0.1.2", path = "../mf1-parser" }
+mf1-parser = { version = "0.1.3", path = "../mf1-parser" }
 proc-macro2 = "1.0.86"
 quote = "1.0.36"
 serde = { version = "1.0.203", features = ["derive"] }
