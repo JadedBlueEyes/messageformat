@@ -22,7 +22,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Start implementing subkeys in [`a040e7e`](https://github.com/JadedBlueEyes/messageformat/commit/a040e7ea88ce34d328b1f3d82ef488c8c8738ec9)
 
-## [0.1.2] - 2024-07-12
+## [0.1.2](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.1...mf1-macros-v0.1.2)  - 2024-07-12
 
 ### Documentation
 
@@ -37,7 +37,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Other
 - Fill out changelogs and configure git-cliff
 
-## [mf1-macros-v0.1.0] - 2024-07-12
+## [0.1.0] - 2024-07-12
 
 ### Bug Fixes
 

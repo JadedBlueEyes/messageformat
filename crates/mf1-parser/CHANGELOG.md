@@ -14,7 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Add `repository` to Cargo.toml files in [`f08a90a`](https://github.com/JadedBlueEyes/messageformat/commit/f08a90a8f25cb89d5c1996d992fabec191eda186)
 
-## [0.1.2] - 2024-07-12
+## [0.1.2](https://github.com/JadedBlueEyes/messageformat/compare/mf1-parser-v0.1.1...mf1-parser-v0.1.2) - 2024-07-12
 
 ### Documentation
 
@@ -29,7 +29,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Other
 - Fill out changelogs and configure git-cliff
 
-## [mf1-parser-v0.1.0] - 2024-07-12
+## [0.1.0] - 2024-07-12
 
 ### Bug Fixes
 

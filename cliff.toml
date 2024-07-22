@@ -48,23 +48,25 @@ body = """
     {% endfor %}
 {% endfor %}
 """
-# template for the changelog footer
-footer = """
-{%- macro remote_url() -%}
-  https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
-{%- endmacro -%}
 
-{% for release in releases -%}
-    {% if release.version -%}
-        {% if release.previous.version -%}
-            [{{ release.version | trim_start_matches(pat="v") }}]: \
-                {{ self::remote_url() }}/compare/{{ release.previous.version }}..{{ release.version }}
-        {% endif -%}
-    {% else -%}
-        [unreleased]: {{ self::remote_url() }}/compare/{{ release.previous.version }}..HEAD
-    {% endif -%}
-{% endfor %}
-"""
+# template for the changelog footer
+# footer = """
+# {%- macro remote_url() -%}
+#   https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}
+# {%- endmacro -%}
+
+# {% for release in releases -%}
+#     {% if release.version -%}
+#         {% if release.previous.version -%}
+#             [{{ release.version | trim_start_matches(pat="v") }}]: \
+#                 {{ self::remote_url() }}/compare/{{ release.previous.version }}..{{ release.version }}
+#         {% endif -%}
+#     {% else -%}
+#         [unreleased]: {{ self::remote_url() }}/compare/{{ release.previous.version }}..HEAD
+#     {% endif -%}
+# {% endfor %}
+# """
+
 # remove the leading and trailing whitespace from the templates
 trim = true
 
