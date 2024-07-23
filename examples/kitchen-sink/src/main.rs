@@ -6,6 +6,7 @@ fn main() {
     dbg!(Locale::default());
     dbg!(Locale::en, Locale::en.get_strings());
     dbg!(Locale::es, Locale::es.get_strings());
+    dbg!(Locale::VALUES);
     println!("{}", t!(Locale::en, message));
 }
 

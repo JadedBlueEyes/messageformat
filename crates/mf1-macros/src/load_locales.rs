@@ -146,6 +146,9 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         .map(|(key, l)| (key, l.name))
         .map(|(variant, locale)| quote!(#locale => Ok(Locale::#variant)));
 
+    let locale_list_items = locale_idents.iter().map(|variant| quote!(Locale::#variant));
+    let locale_count = locale_idents.len();
+
     let locales_enum = quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
@@ -154,6 +157,8 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         }
 
         impl Locale {
+            const VALUES: [Self; #locale_count] = [#(#locale_list_items,)*];
+
             fn get_strings(self) -> &'static #i18n_keys_ident {
                 match self {
                     #(#get_strings_match_arms,)*
