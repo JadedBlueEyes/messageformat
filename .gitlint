@@ -2,3 +2,10 @@
 # Ignore rules, reference them by id or name (comma-separated)
 ignore=body-is-missing
 contrib=contrib-title-conventional-commits
+
+regex-style-search=True
+
+[ignore-by-title]
+# Dependency names may be very long
+regex=^chore\(deps\): 
+ignore=title-max-length,body-is-missing
