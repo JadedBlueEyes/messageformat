@@ -1,4 +1,4 @@
-use convert_case::Case::Snake;
+use convert_case::Case::{Pascal, Snake};
 use convert_case::Casing;
 use mf1_parser::{parse, ArgType, LexerSpan, Token as AstToken, TokenSlice};
 use proc_macro2::Ident;
@@ -55,14 +55,21 @@ pub struct ConfigFile {
 #[derive(Debug, Clone, PartialEq)]
 pub struct StringSet<'a> {
     pub name: &'a str,
-    pub keys: HashMap<Cow<'a, str>, Cow<'a, str>>,
+    pub keys: HashMap<Cow<'a, str>, StringItem<'a>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum StringItem<'a> {
+    String(Cow<'a, str>),
+    Subkey(HashMap<Cow<'a, str>, StringItem<'a>>),
 }
 
 impl<'a> StringSet<'a> {
     pub fn from_file(name: &'a str, locale_file: File) -> Result<Self, serde_json::Error> {
         let reader = io::BufReader::new(locale_file);
         let mut deser = serde_json::Deserializer::from_reader(reader);
-        let keys = HashMap::<Cow<'a, str>, Cow<'a, str>>::deserialize(&mut deser)?;
+        let keys = HashMap::<Cow<'a, str>, StringItem<'a>>::deserialize(&mut deser)?;
         Ok(Self { name, keys })
     }
     pub fn ident(&self) -> Ident {
@@ -139,6 +146,9 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         .map(|(key, l)| (key, l.name))
         .map(|(variant, locale)| quote!(#locale => Ok(Locale::#variant)));
 
+    let locale_list_items = locale_idents.iter().map(|variant| quote!(Locale::#variant));
+    let locale_count = locale_idents.len();
+
     let locales_enum = quote! {
         #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
         #[allow(non_camel_case_types)]
@@ -147,6 +157,8 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         }
 
         impl Locale {
+            const VALUES: [Self; #locale_count] = [#(#locale_list_items,)*];
+
             fn get_strings(self) -> &'static #i18n_keys_ident {
                 match self {
                     #(#get_strings_match_arms,)*
@@ -177,36 +189,131 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             }
         }
     };
+    let keys_tokens = generate_keys(
+        locales.iter().map(|k| (k.name, k)).collect(),
+        base_locale_strings,
+        i18n_keys_ident,
+    );
+    Ok(quote! {
+        #locales_enum
+        #keys_tokens
+    })
+}
+
+fn generate_keys(
+    locales: HashMap<&str, &StringSet>,
+    base_locale_strings: &StringSet,
+    i18n_keys_ident: Ident,
+) -> TokenStream {
+    let base_locale_ident = base_locale_strings.ident();
+    let locale_subkeys: HashMap<_, _> = locales
+        .iter()
+        .map(|(name, string_keys)| {
+            let mut keys = HashMap::new();
+            string_keys
+                .keys
+                .iter()
+                .filter_map(|(k, v)| match v {
+                    StringItem::Subkey(v) => Some((k, v)),
+                    _ => None,
+                })
+                .for_each(|(k, v)| match base_locale_strings.keys.get(k) {
+                    Some(StringItem::Subkey(_)) => {
+                        keys.insert(k.clone(), v);
+                    }
+                    Some(_) => eprintln!(
+                        "Default locale has incompatible non-subkey key {:?} from locale {}!",
+                        k, name
+                    ),
+                    None => eprintln!(
+                        "Default locale is missing key {:?} from locale {}!",
+                        k, name
+                    ),
+                });
+            (name, keys)
+        })
+        .collect();
+    let locale_subkeys = base_locale_strings
+        .keys
+        .iter()
+        .filter_map(|(k, v)| match v {
+            StringItem::Subkey(v) => Some((k, v)),
+            _ => None,
+        })
+        .map(|(k, v)| {
+            let locales: HashMap<&str, StringSet> = locale_subkeys
+                .iter()
+                .map(|(l, m)| {
+                    (
+                        **l,
+                        StringSet {
+                            name: l,
+                            keys: m.get(k).map(|s| (*s).clone()).unwrap_or_else(HashMap::new),
+                        },
+                    )
+                })
+                .collect();
+            (
+                k,
+                generate_keys(
+                    locales.iter().map(|(k, v)| (*k, v)).collect(),
+                    &StringSet {
+                        name: base_locale_strings.name,
+                        keys: v.clone(),
+                    },
+                    quote::format_ident!("{}", k.to_case(Pascal)),
+                ),
+            )
+        })
+        .map(|(k, v)| {
+            let k = quote::format_ident!("{}", k.to_case(Snake));
+            quote! {
+                pub mod #k {
+                    #v
+                }
+            }
+        });
 
     let locale_ast: HashMap<_, _> = locales
         .iter()
-        .map(|l| {
+        .map(|(name, l)| {
             let mut keys = HashMap::new();
-            l.keys.iter().for_each(|(k, v)| {
-                keys.insert(
-                    k.clone(),
-                    parse::<String>(v).map_err(|(message, span)| Error::ParseKeyErr {
-                        locale: l.name.to_string(),
-                        key: k.to_string(),
-                        src: v.to_string(),
-                        message,
-                        span,
-                    }),
-                );
-            });
-            (l.name, keys)
+            l.keys
+                .iter()
+                .filter_map(|(k, v)| match v {
+                    StringItem::String(v) => Some((k, v)),
+                    StringItem::Subkey(_) => None,
+                })
+                .for_each(|(k, v)| {
+                    keys.insert(
+                        k.clone(),
+                        parse::<String>(v).map_err(|(message, span)| Error::ParseKeyErr {
+                            locale: l.name.to_string(),
+                            key: k.to_string(),
+                            src: v.to_string(),
+                            message,
+                            span,
+                        }),
+                    );
+                });
+            (name, keys)
         })
         .collect();
 
     let string_keys = base_locale_strings
         .keys
-        .keys()
-        .filter(|k| {
+        .iter()
+        .filter(|(k, v)| {
+            match v{
+                StringItem::String(_) => (),
+                StringItem::Subkey(_) => return false,
+            }
             locale_ast.iter().all(|(_l, v)| match v.get(*k) {
                 Some(s) => matches!(s, Ok(r) if r.iter().all(|t| matches!(t, AstToken::Content { value: _ }))),
                 None => true,
             })
         })
+        .map(|(k, _)| k)
         .collect::<Vec<_>>();
 
     let mut dyn_keys = HashMap::new();
@@ -338,14 +445,24 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             }
         })
         .collect::<Vec<_>>();
-    let dyn_field_defs: Vec<TokenStream> = dyn_keys
+
+    let subkey_field_defs = base_locale_strings
+        .keys
         .iter()
-        .map(|(key, args)| {
-            let key: Ident = Ident::new(key, Span::call_site());
-            let type_params = args.iter().map(|_| quote!(builders::EmptyValue));
-            quote!(pub #key: builders::#key<'static, #(#type_params,)*>)
-        })
-        .collect::<Vec<_>>();
+        .filter_map(|(k, v)| match v {
+            StringItem::Subkey(_) => {
+                let mod_name: Ident = quote::format_ident!("{}", k.to_case(Snake));
+                let type_name = quote::format_ident!("{}", k.to_case(Pascal));
+                let k = quote::format_ident!("{}", k);
+                Some(quote!(pub #k: subkeys::#mod_name::#type_name))
+            }
+            _ => None,
+        });
+    let dyn_field_defs = dyn_keys.iter().map(|(key, args)| {
+        let key: Ident = quote::format_ident!("{}", key);
+        let type_params = args.iter().map(|_| quote!(builders::EmptyValue));
+        quote!(pub #key: builders::#key<'static, #(#type_params,)*>)
+    });
 
     let string_field_defs = string_keys
         .iter()
@@ -365,14 +482,28 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         pub struct #i18n_keys_ident {
             #(#string_field_defs,)*
             #(#dyn_field_defs,)*
+            #(#subkey_field_defs,)*
         }
     };
 
     let locale_values = locales.iter().map(|locale| {
+        let ident = locale.1.ident();
+        let subkey_fields = base_locale_strings
+        .keys
+        .iter()
+        .filter_map(|(k, v)| match v {
+            StringItem::Subkey(_) => {
+                let mod_name: Ident = quote::format_ident!("{}", k.to_case(Snake));
+                let k = quote::format_ident!("{}", k);
+            Some(quote!(#k: subkeys::#mod_name::#ident))
+            },
+            _ => None,
+        });
         let string_fields = string_keys.iter().map(|key| {
             let key_ident = Ident::new(key, Span::call_site());
-            match locale.keys.get(*key) {
-                Some(value) => quote!(#key_ident: #value),
+            match locale.1.keys.get(*key) {
+                Some(StringItem::String(value)) => quote!(#key_ident: #value),
+                Some(StringItem::Subkey(_)) => unreachable!(),
                 _ => {
                     quote!(#key_ident: #base_locale_ident.#key_ident)
                 }
@@ -380,7 +511,7 @@ pub fn load_locales() -> Result<TokenStream, Error> {
         });
         let formatter_fields = dyn_keys.iter().map(|(key, arg_types)| {
             let key_ident = Ident::new(key, Span::call_site());
-            match locale_ast.get(locale.name).unwrap().get(*key) {
+            match locale_ast.get(locale.0).unwrap().get(*key) {
                 Some(Ok(ast)) => {
                     let args = arg_types
                         .iter()
@@ -436,13 +567,13 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             }
         });
 
-        let ident = locale.ident();
 
         quote! {
             #[allow(non_upper_case_globals)]
-            const #ident: #i18n_keys_ident = #i18n_keys_ident {
+            pub(crate) const #ident: #i18n_keys_ident = #i18n_keys_ident {
                 #(#string_fields,)*
                 #(#formatter_fields,)*
+                #(#subkey_fields,)*
             };
         }
     });
@@ -452,10 +583,12 @@ pub fn load_locales() -> Result<TokenStream, Error> {
             #locale_values
         )*
     };
-
-    Ok(quote! {
-        #locales_enum
+    quote! {
+        #[doc(hidden)]
+        pub mod subkeys {
+            #(#locale_subkeys)*
+        }
         #keys_type
         #locale_static
-    })
+    }
 }

@@ -6,6 +6,7 @@ fn main() {
     dbg!(Locale::default());
     dbg!(Locale::en, Locale::en.get_strings());
     dbg!(Locale::es, Locale::es.get_strings());
+    dbg!(Locale::VALUES);
     println!("{}", t!(Locale::en, message));
 }
 
@@ -73,5 +74,24 @@ fn select_formats() {
     check(
         t!(Locale::en, select, gender = "aaaaa"),
         &expect!["They liked this."],
+    );
+}
+
+#[test]
+fn basic_nested() {
+    check(t!(Locale::en, nested.keys), &expect!["You can nest keys!"]);
+    check(
+        t!(Locale::es, nested.keys),
+        &expect!["¡Puedes anidar llaves!"],
+    );
+}
+
+#[test]
+fn fallbacks_nested() {
+    let actual = expect!["And fallbacks work!"];
+    check(t!(Locale::en, nested.fallbacks), &actual);
+    assert_eq!(
+        t!(Locale::es, nested.fallbacks),
+        t!(Locale::en, nested.fallbacks)
     );
 }

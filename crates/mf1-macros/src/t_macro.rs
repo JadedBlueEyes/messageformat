@@ -1,5 +1,5 @@
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, TokenStreamExt};
 
 use syn::{token, Expr, Ident};
 use thiserror::Error;
@@ -26,7 +26,7 @@ impl From<Error> for proc_macro::TokenStream {
 
 pub struct ParsedInput {
     pub context: Expr,
-    pub key: Ident,
+    pub keys: Vec<Ident>,
     pub interpolations: Option<Vec<InterpolatedValue>>,
 }
 
@@ -34,7 +34,12 @@ impl syn::parse::Parse for ParsedInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let context = input.parse()?;
         input.parse::<token::Comma>()?;
-        let key = input.parse()?;
+        let mut keys = Vec::new();
+        keys.push(input.parse()?);
+        while input.peek(token::Dot) {
+            input.parse::<token::Dot>()?;
+            keys.push(input.parse()?);
+        }
         let interpolations = match input.parse::<token::Comma>() {
             Ok(_) => {
                 let interpolations = input
@@ -48,7 +53,7 @@ impl syn::parse::Parse for ParsedInput {
         };
         Ok(ParsedInput {
             context,
-            key,
+            keys,
             interpolations,
         })
     }
@@ -74,11 +79,12 @@ impl syn::parse::Parse for InterpolatedValue {
 pub fn t_macro(tokens: TokenStream, output_type: OutputType) -> Result<TokenStream, Error> {
     let ParsedInput {
         context,
-        key,
+        keys,
         interpolations,
     } = syn::parse2(tokens)?;
 
-    let get_key = quote!(#context.get_strings().#key);
+    let mut get_key = quote!(#context.get_strings().);
+    get_key.append_separated(keys, quote!(.));
     let build_fn = match output_type {
         OutputType::String => quote!(build_string),
     };
