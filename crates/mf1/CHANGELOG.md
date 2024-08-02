@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4](https://github.com/JadedBlueEyes/messageformat/compare/mf1-v0.1.3...mf1-v0.1.4) - 2024-08-02
+
+### Documentation
+
+- Remove duplicate link refs in [`f754fc8`](https://github.com/JadedBlueEyes/messageformat/commit/f754fc8dd33df5b415a7f8af089be0025390fd3c)
+- Clean up changelogs in [`110b4ac`](https://github.com/JadedBlueEyes/messageformat/commit/110b4ac49c8fd73aeb9e119950e44c3edb2c00a4)
+
 ## [0.1.3](https://github.com/JadedBlueEyes/messageformat/compare/mf1-v0.1.2...mf1-v0.1.3) - 2024-07-22
 
 ### Documentation
