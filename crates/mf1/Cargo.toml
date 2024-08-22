@@ -1,6 +1,6 @@
 [package]
 name = "mf1"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Use ICU MessageFormat 1 to internationalise your apps"
@@ -10,7 +10,7 @@ homepage = "https://github.com/JadedBlueEyes/messageformat/tree/main/crates/mf1"
 
 [dependencies]
 
-mf1-macros = { path = "../mf1-macros", version = "0.1.3", optional = true}
+mf1-macros = { path = "../mf1-macros", version = "0.1.4", optional = true}
 
 [features]
 
