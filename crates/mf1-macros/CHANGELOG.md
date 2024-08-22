@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+
+## [0.1.5](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.4...mf1-macros-v0.1.5) - 2024-08-22
+
+### Bug Fixes
+
+- Allow multiple interpolation values in [`3228ee1`](https://github.com/JadedBlueEyes/messageformat/commit/3228ee11e3a78cc407552ca6f43e5e96b38e1a9b)
+
 ## [0.1.4](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.3...mf1-macros-v0.1.4) - 2024-08-02
 
 ### Documentation
