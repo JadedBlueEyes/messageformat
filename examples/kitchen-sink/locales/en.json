@@ -7,5 +7,6 @@
     "nested": {
         "keys": "You can nest keys!",
         "fallbacks": "And fallbacks work!"
-    }
+    },
+    "multi_interpolation": "{a} and {b}"
 }

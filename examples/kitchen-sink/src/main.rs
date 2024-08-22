@@ -44,6 +44,15 @@ fn interpolation() {
 }
 
 #[test]
+fn multi_interpolation() {
+    let a = "Chalk";
+    let b = "Cheese";
+    check(
+        t!(Locale::en, multi_interpolation, a, b),
+        &expect!["Chalk and Cheese"],
+    );
+}
+#[test]
 fn fallbacks_string() {
     let actual = expect!["This is a second message!"];
     check(t!(Locale::en, message_2), &actual);

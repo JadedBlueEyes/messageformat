@@ -386,12 +386,19 @@ fn generate_keys(
                 quote!(self.#key)
             });
             let formatter_type = quote!(&'a for<'x, 'y> fn(&'x mut dyn mf1::Formatable<'y>, #(#concrete_types,)*) -> Result<(), Box<dyn std::error::Error>>);
-            fn gen_setter<'a>(ident: &syn::Ident, field: &syn::Ident, other_fields: impl Iterator<Item = &'a Ident> + Clone) -> proc_macro2::TokenStream {
-                let restructure_others = other_fields.clone();
+            fn gen_setter(ident: &syn::Ident, field: &syn::Ident, left_fields: &[Ident], right_fields: &[Ident]) -> proc_macro2::TokenStream {
+                let restructure_others = left_fields.iter().chain(right_fields.iter());
+                let other_fields = restructure_others.clone();
+
+                let left_type_params: Vec<_> = left_fields.iter().map(|arg| Ident::new(&format!("__{}", arg), Span::call_site())).collect();
+                let right_type_params: Vec<_> = right_fields.iter().map(|arg| Ident::new(&format!("__{}", arg), Span::call_site())).collect();
+
+                let all_type_params = left_fields.iter().chain(right_fields.iter()).map(|arg| Ident::new(&format!("__{}", arg), Span::call_site()));
+
                 quote! {
 
-                    impl<'a> #ident<'a, EmptyValue> {
-                        pub fn #field(self, #field: &str) -> #ident<'a, &str> {
+                    impl<'a, #(#all_type_params,)*> #ident<'a, #(#left_type_params,)*EmptyValue,#(#right_type_params,)*> {
+                        pub fn #field(self, #field: &str) -> #ident<'a,#(#left_type_params,)*&str,#(#right_type_params,)*> {
                             let #ident { formatter, #(#other_fields,)* .. } = self;
                             #ident { formatter, #field, #(#restructure_others,)*  }
                         }
@@ -406,7 +413,7 @@ fn generate_keys(
             let setters = (0..field_names.len())
             .map(|i| split_at(&field_names, i))
             .map(|(left_fields, field, right_fields)| {
-                gen_setter(&ident, field, left_fields.iter().chain(right_fields.iter()))
+                gen_setter(&ident, field, left_fields, right_fields)
             });
             quote! {
                 #[allow(non_camel_case_types, non_snake_case)]
@@ -435,7 +442,7 @@ fn generate_keys(
                 }
                 impl<'a> std::fmt::Display for #ident<'a, #(#concrete_types,)*> {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                        match (self.formatter)(f, #(#formatter_args)*) {
+                        match (self.formatter)(f, #(#formatter_args,)*) {
                             Ok(_) => Ok(()),
                             Err(e) => Err(*e.downcast().unwrap()),
                         }
