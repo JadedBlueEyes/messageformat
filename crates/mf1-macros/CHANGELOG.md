@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 
+## [0.1.6](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.5...mf1-macros-v0.1.6) - 2024-09-13
+
+### Miscellaneous Tasks
+
+- Enrich Cargo metadata in [`25fe330`](https://github.com/JadedBlueEyes/messageformat/commit/25fe330d5351a1dc9549af51abf49afcf85199fb)
+
+
+
 ## [0.1.5](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.4...mf1-macros-v0.1.5) - 2024-08-22
 
 ### Bug Fixes
