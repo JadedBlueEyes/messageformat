@@ -22,7 +22,7 @@ enum BodyToken {
     #[regex(r"'[{}#]([^'])*'")]
     // This is slightly incompatible with the JS regex
     // which is `'[{}#](?:[^]*?[^'])?'(?!')`. This uses lazy matching and
-    // backtracking, neither of witch Logos supports.
+    // backtracking, neither of which Logos supports.
     // This results in "I said '{''Wow!''}'", "I said {'Wow!'}" failing.
     Quote,
 

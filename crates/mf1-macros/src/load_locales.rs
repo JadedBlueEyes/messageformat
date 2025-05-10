@@ -385,7 +385,7 @@ fn generate_keys(
             let formatter_args = field_names.iter().map(|key| {
                 quote!(self.#key)
             });
-            let formatter_type = quote!(&'a for<'x, 'y> fn(&'x mut dyn mf1::Formatable<'y>, #(#concrete_types,)*) -> Result<(), Box<dyn std::error::Error>>);
+            let formatter_type = quote!(&'a for<'x, 'y> fn(&'x mut dyn mf1::Formattable<'y>, #(#concrete_types,)*) -> Result<(), Box<dyn std::error::Error>>);
             fn gen_setter(ident: &syn::Ident, field: &syn::Ident, left_fields: &[Ident], right_fields: &[Ident]) -> proc_macro2::TokenStream {
                 let restructure_others = left_fields.iter().chain(right_fields.iter());
                 let other_fields = restructure_others.clone();
@@ -563,7 +563,7 @@ fn generate_keys(
                         }
                     }
                     let items = ast.iter().flat_map(gen_items);
-                    quote!(#key_ident: builders::#key_ident::new(&(|fmt: &mut dyn mf1::Formatable, #(#args,)*| -> Result<(), _> {
+                    quote!(#key_ident: builders::#key_ident::new(&(|fmt: &mut dyn mf1::Formattable, #(#args,)*| -> Result<(), _> {
                         #(#items)*
                         Ok(())
                     } as _)))

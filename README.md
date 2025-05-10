@@ -6,6 +6,6 @@ MessageFormat is a collection of crates to help with internationalising Rust app
 
 - [mf1](./crates/mf1/)
 - [mf1-macros](./crates/mf1-macros/)
-- [mf1-parser](./crates/mf1/-parser)
+- [mf1-parser](./crates/mf1-parser/)
 
 Take a look at the [basic example](https://github.com/JadedBlueEyes/messageformat/blob/main/examples/basic/).

@@ -33,13 +33,13 @@ impl BuildStr for &'static str {
 }
 
 #[doc(hidden)]
-pub trait Formatable<'a> {
+pub trait Formattable<'a> {
     // type Error;
     fn write_str(&mut self, data: &str) -> Result<(), Box<dyn Error>>;
     fn write_fmt(&mut self, args: std::fmt::Arguments) -> Result<(), Box<dyn Error>>;
 }
 
-impl<'a> Formatable<'a> for core::fmt::Formatter<'a> {
+impl<'a> Formattable<'a> for core::fmt::Formatter<'a> {
     // type Error = std::fmt::Error;
 
     fn write_str(&mut self, data: &str) -> Result<(), Box<dyn Error>> {
