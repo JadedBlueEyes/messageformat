@@ -1,6 +1,6 @@
 [package]
 name = "mf1-parser"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Parse ICU MessageFormat 1 syntax"
