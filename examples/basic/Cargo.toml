@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
-mf1 = { version = "0.1.6", path = "../../crates/mf1" }
+mf1 = { version = "0.1.7", path = "../../crates/mf1" }
 
 [package.metadata.mf1]
 locales = ["en", "es"]
