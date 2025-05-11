@@ -1,0 +1,3 @@
+[default]
+# Git commit short hash
+extend-ignore-identifiers-re = ["^[0-9a-f]{7,}$"]
