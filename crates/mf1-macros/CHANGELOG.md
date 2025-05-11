@@ -6,6 +6,16 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 
+## [0.1.7](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.6...mf1-macros-v0.1.7) - 2025-05-11
+
+### Miscellaneous Tasks
+
+- Update breaking dep versions in [`62030c9`](https://github.com/JadedBlueEyes/messageformat/commit/62030c922e62fcf7fa7ea2c4348312fb7e253568)
+- More explicitly transform to proc_macro2 tokens in [`bb14afe`](https://github.com/JadedBlueEyes/messageformat/commit/bb14afe1b0ea35e0c68739fc47051d658bfac826)
+- Fix typos in [`6fe2c13`](https://github.com/JadedBlueEyes/messageformat/commit/6fe2c13120f6ed2d254778e0422a3960ed4d2ea0)
+
+
+
 ## [0.1.6](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.5...mf1-macros-v0.1.6) - 2024-09-13
 
 ### Miscellaneous Tasks
