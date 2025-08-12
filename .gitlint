@@ -7,5 +7,10 @@ regex-style-search=True
 
 [ignore-by-title]
 # Dependency names may be very long
-regex=^chore\(deps\): 
+regex=^chore\(deps\):
 ignore=title-max-length,body-is-missing
+
+[ignore-by-body]
+# Ignore commit trailers
+regex=^[A-Z][a-z\-]*:\s
+ignore=body-max-line-length
