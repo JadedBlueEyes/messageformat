@@ -1,7 +1,7 @@
 use crate::ast::{SelectCase, Token};
 use crate::parser::parse;
 
-pub(crate) fn parse_ui(src: &str) -> Vec<Token<&str>> {
+pub(crate) fn parse_ui(src: &str) -> Vec<Token<'_, '_, &str>> {
     match parse(src) {
         Ok(value) => value,
         Err((msg, span)) => {
