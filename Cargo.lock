@@ -265,14 +265,14 @@ checksum = "32a282da65faaf38286cf3be983213fcf1d2e2a58700e808f83f4ea9a4804bc0"
 
 [[package]]
 name = "mf1"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "mf1-macros",
 ]
 
 [[package]]
 name = "mf1-macros"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "convert_case",
  "mf1-parser",
@@ -287,7 +287,7 @@ dependencies = [
 
 [[package]]
 name = "mf1-parser"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "icu_plurals",
  "logos",

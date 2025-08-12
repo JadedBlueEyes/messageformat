@@ -6,6 +6,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 
+## [0.1.8](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.7...mf1-macros-v0.1.8) - 2025-08-12
+
+### Documentation
+
+- Add comments explaining function pointer comparisons in [`cc0745c`](https://github.com/JadedBlueEyes/messageformat/commit/cc0745ce9c26246b7b17a51b6c5b3c399e778cfb)
+
+### Refactor
+
+- Use more efficient iterators in [`7389a62`](https://github.com/JadedBlueEyes/messageformat/commit/7389a6272ac3c1f748a31edb6291ec601111957b)
+
+
+
 ## [0.1.7](https://github.com/JadedBlueEyes/messageformat/compare/mf1-macros-v0.1.6...mf1-macros-v0.1.7) - 2025-05-11
 
 ### Miscellaneous Tasks

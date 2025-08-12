@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 
+## [0.1.7](https://github.com/JadedBlueEyes/messageformat/compare/mf1-parser-v0.1.6...mf1-parser-v0.1.7) - 2025-08-12
+
+### Miscellaneous Tasks
+
+- Explicitly specify lifetime in parse function in [`98a6285`](https://github.com/JadedBlueEyes/messageformat/commit/98a6285b9041d266ff2de102b61d79d4d1f3011d)
+
+
+
 ## [0.1.6](https://github.com/JadedBlueEyes/messageformat/compare/mf1-parser-v0.1.5...mf1-parser-v0.1.6) - 2025-05-11
 
 ### Miscellaneous Tasks
