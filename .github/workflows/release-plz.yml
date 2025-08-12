@@ -1,4 +1,4 @@
-name: Release Plz
+name: Release-plz
 
 permissions:
   pull-requests: write
@@ -13,6 +13,9 @@ jobs:
   release-plz:
     name: Release-plz
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'JadedBlueEyes' }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,40 +23,35 @@ jobs:
           fetch-depth: 0
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-      - name: Use rust cache
-        uses: Swatinem/rust-cache@v2
       - name: Run release-plz
-        id: release-plz
-        uses: MarcoIeni/release-plz-action@v0.5
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      - name: Tag released PRs
+        uses: release-plz/action@v0.5
+        with:
+          command: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASES: ${{ steps.release-plz.outputs.releases }}
-        run: |
-          set -e
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-          # Iterate over released packages and add a label to the PRs
-          # shipped with the release.
-          for release in $(echo "$RELEASES" | jq -r -c '.[]'); do
-              package_name=$(echo "$release" | jq -r '.package_name')
-              version=$(echo "$release" | jq -r '.version')
-              prs_length=$(echo "$release" | jq '.prs | length')
-              if [ "$prs_length" -gt 0 ]; then
-                  # Create label.
-                  # Use `--force` to overwrite the label,
-                  # so that the command does not fail if the label already exists.
-                  label="released:$package_name-$version"
-                  echo "Creating label $label"
-                  gh label create $label --color BFD4F2 --force
-                  for pr in $(echo "$release" | jq -r -c '.prs[]'); do
-                      pr_number=$(echo "$pr" | jq -r '.number')
-                      echo "Adding label $label to PR #$pr_number"
-                      gh pr edit $pr_number --add-label $label
-                  done
-              else
-                  echo "No PRs found for package $package_name"
-              fi
-          done
+  # Create a PR with the new versions and changelog, preparing the next release.
+  release-plz-pr:
+    name: Release-plz PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
