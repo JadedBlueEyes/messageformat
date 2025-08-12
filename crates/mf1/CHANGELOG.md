@@ -6,6 +6,14 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 
 
+## [0.1.8](https://github.com/JadedBlueEyes/messageformat/compare/mf1-v0.1.7...mf1-v0.1.8) - 2025-08-12
+
+### Miscellaneous Tasks
+
+- Updated the following local packages: mf1-macros in [`0000000`](https://github.com/JadedBlueEyes/messageformat/commit/0000000)
+
+
+
 ## [0.1.7](https://github.com/JadedBlueEyes/messageformat/compare/mf1-v0.1.6...mf1-v0.1.7) - 2025-05-11
 
 ### Miscellaneous Tasks
