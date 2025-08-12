@@ -417,7 +417,10 @@ fn generate_keys(
             });
             quote! {
                 #[allow(non_camel_case_types, non_snake_case)]
-                // #[derive(Clone, Copy)]
+                // Function pointers are compared in the automatically derived PartialEq, Eq, and Hash implementations.
+                // While comparing function pointers is generally unreliable (identical functions can have different addresses
+                // across compilation units), it's acceptable here as we only care about the *exact* same function.
+                #[allow(unpredictable_function_pointer_comparisons)]
                 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
                 // #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
                 pub struct #ident<'a, #(#type_params,)*> {
