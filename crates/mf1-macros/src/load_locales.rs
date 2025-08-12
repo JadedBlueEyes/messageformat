@@ -360,20 +360,20 @@ fn generate_keys(
         .map(|(key, args)| {
             let ident = Ident::new(key, Span::call_site());
             let type_params = args
-                .iter()
-                .map(|(arg, _)| Ident::new(&format!("__{}", arg), Span::call_site()));
+              .keys()
+              .map(|arg| Ident::new(&format!("__{}", arg), Span::call_site()));
             let concrete_types: Vec<_> = args
-                .iter()
-                .map(|(_, arg_type)| match arg_type {
-                    ArgType::OrdinalArg => quote! {i32},
-                    ArgType::PlainArg | ArgType::SelectArg => quote! {&str},
-                    ArgType::FunctionArg => todo!()
-                }).collect();
+              .values()
+              .map(|arg_type| match arg_type {
+                  ArgType::OrdinalArg => quote! {i32},
+                  ArgType::PlainArg | ArgType::SelectArg => quote! {&str},
+                  ArgType::FunctionArg => todo!()
+              }).collect();
 
-            let field_names: Vec<_> = args.iter().map(|(arg, _)| {
+            let field_names: Vec<_> = args.keys().map(|arg| {
                 Ident::new(&format!("arg_{}", arg), Span::call_site())
             }).collect();
-            let fields = args.iter().map(|(arg, _)| {
+            let fields = args.keys().map(|arg| {
                 let key = Ident::new(&format!("arg_{}", arg), Span::call_site());
                 let type_param = Ident::new(&format!("__{}", arg), Span::call_site());
                 quote!(#key: #type_param)
